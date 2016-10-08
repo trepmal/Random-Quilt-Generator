@@ -1,8 +1,8 @@
 <?php
 /**
- * Random Quilts
+ * Random Quilt
  */
-class Random_Quilts {
+class Random_Quilt {
 
 	/**
 	 *
