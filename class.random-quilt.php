@@ -65,7 +65,9 @@ class Random_Quilt {
 
 		$bits = $this->shuffle_array( $bits );
 
-		return $this->colorize( $bits );
+		$bits = array_chunk( $bits, 3 );
+
+		return $bits;
 	}
 
 	/**
@@ -84,8 +86,11 @@ class Random_Quilt {
 		$needed = $area*6; // 6 = length of color hex code
 		$repeat = ceil( $needed/40 ); // 40 = length of sha1 output
 
+		$hash   = sha1( $this->salt );
+		$hash   = str_repeat( $hash, $repeat );
+
 		$hash = str_split(
-			str_repeat( sha1( $this->salt ), $repeat )
+			substr( $hash, 0, $needed )
 		, 2 );
 
 		return $hash;
@@ -109,25 +114,12 @@ class Random_Quilt {
 	}
 
 	/**
-	 * Colorize
-	 *
-	 * input: array( 'ab', 'cd', 'ef', 'cd', 'ab', 'ef' )
-	 * output: array( 'abcdef', 'cdabef' )
-	 *
-	 * @param array $hash_bits Array whose values are only 2-character strings
-	 * @return array Array whose values are 6-character strings
-	 */
-	private function colorize( $hash_bits ) {
-		$hash_chunks = array_chunk( $hash_bits, 3 );
-		$colors = array_map( 'implode', $hash_chunks );
-		return $colors;
-	}
-
-	/**
 	 * Build image
 	 *
+	 * @param string|null $path Path to save file to
+	 * @param bool $base64 Whether to out a base64 encoded image or not
 	 */
-	function build_image() {
+	function build_image( $path=null, $base64=false ) {
 
 		$colors = $this->get_colors();
 
@@ -143,9 +135,10 @@ class Random_Quilt {
 		// width/height position trackers
 		$wpos = $hpos = 0;
 
-		foreach ( $colors as $block_color ) {
+		foreach ( $colors as $rgb ) {
 
-			$block_color = '0x00'.$block_color;
+			list( $r, $g, $b ) = array_map( 'hexdec', $rgb );
+			$block_color = imagecolorallocate( $im, $r, $g, $b );
 
 			imagefilledrectangle( $im, $wpos, $hpos, $wpos+$unit, $hpos+$unit, $block_color );
 			$hpos += $unit;
@@ -158,10 +151,18 @@ class Random_Quilt {
 
 		}
 
-		header( 'Content-Type: image/png' );
-		header( 'Content-Disposition: filename="identicon.png"' );
-		imagepng( $im );
+		if ( $base64 ) {
+			ob_start();
+		} else {
+			header( 'Content-Type: image/png' );
+			header( 'Content-Disposition: filename="identicon.png"' );
+		}
+		imagepng( $im, $path );
 		imagedestroy( $im );
+		if ( $base64 ) {
+			header( 'Content-Type: text/plain' );
+			die( base64_encode( ob_get_clean() ) );
+		}
 	}
 
 }
